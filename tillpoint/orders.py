@@ -53,9 +53,10 @@ class Orders:
             raise OrderError("a shipped order cannot be cancelled")
         self.conn.execute("BEGIN IMMEDIATE")
         try:
-            if order["status"] == "paid":
-                for item in order["items"]:
-                    self.catalog.release(item["sku"], item["qty"])
+            # FIX: stock is reserved at create(), so every order that reaches
+            # here (pending or paid) must give its stock back.
+            for item in order["items"]:
+                self.catalog.release(item["sku"], item["qty"])
             if order["coupon"]:
                 self.conn.execute("UPDATE coupons SET uses = uses - 1 WHERE code = ? AND uses > 0", (order["coupon"],))
             self.conn.execute("UPDATE orders SET status = 'cancelled' WHERE id = ?", (order_id,))
