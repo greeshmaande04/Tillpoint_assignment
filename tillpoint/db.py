@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS payments (
     order_id INTEGER NOT NULL REFERENCES orders(id),
     event_id TEXT NOT NULL,
     amount_cents INTEGER NOT NULL,
-    received_at TEXT NOT NULL
+    received_at TEXT NOT NULL,
+    duplicate INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer, created_at);
@@ -52,12 +53,16 @@ def connect(path=":memory:"):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
-    # NEW: remove old duplicate payment rows, keeping the first per event_id
+    # NEW: a database file created before this change has no duplicate column
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(payments)")]
+    if "duplicate" not in cols:
+        conn.execute("ALTER TABLE payments ADD COLUMN duplicate INTEGER NOT NULL DEFAULT 0")
+    # remove old duplicate payment rows, keeping the first per event_id
     conn.execute(
         "DELETE FROM payments WHERE id NOT IN"
         " (SELECT MIN(id) FROM payments GROUP BY event_id)"
     )
-    # NEW: block future duplicates at the database level
+    # block future repeats of the same event at the database level
     conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_event ON payments(event_id)"
     )

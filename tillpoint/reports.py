@@ -17,7 +17,7 @@ def daily_sales(conn, day, utc_offset_minutes=0):
     start, end = day_bounds_utc(day, utc_offset_minutes)
     row = conn.execute(
         "SELECT COALESCE(SUM(amount_cents), 0) AS revenue, COUNT(DISTINCT order_id) AS orders"
-        " FROM payments WHERE received_at >= ? AND received_at < ?",
+        " FROM payments WHERE received_at >= ? AND received_at < ? AND duplicate = 0",  # NEW
         (start, end),
     ).fetchone()
     return {"day": day, "revenue_cents": row["revenue"], "orders": row["orders"]}

@@ -17,3 +17,25 @@ class DuplicateWebhookTest(unittest.TestCase):
         self.app.payments.handle_event(event)
         self.app.payments.handle_event(event)
         self.assertEqual(self.app.payments.paid_cents(order["id"]), 1200)
+
+
+class DoublePaymentTest(unittest.TestCase):
+    def setUp(self):
+        self.conn = db.connect()
+        self.app = App(self.conn)
+        self.app.catalog.add_product("MUG", "Mug", 1200, stock=10)
+
+    def test_second_payment_is_flagged_not_counted(self):
+        order = self.app.orders.create("ana", [("MUG", 1)])
+        for evt in ("evt_1", "evt_2"):
+            self.app.payments.handle_event(
+                {"id": evt, "type": "payment.succeeded",
+                 "order_id": order["id"], "amount_cents": 1200})
+        self.assertEqual(self.app.payments.paid_cents(order["id"]), 1200)
+        flagged = self.conn.execute(
+            "SELECT COUNT(*) AS n FROM payments WHERE duplicate = 1").fetchone()["n"]
+        self.assertEqual(flagged, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
