@@ -52,6 +52,15 @@ def connect(path=":memory:"):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    # NEW: remove old duplicate payment rows, keeping the first per event_id
+    conn.execute(
+        "DELETE FROM payments WHERE id NOT IN"
+        " (SELECT MIN(id) FROM payments GROUP BY event_id)"
+    )
+    # NEW: block future duplicates at the database level
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_event ON payments(event_id)"
+    )
     return conn
 
 
