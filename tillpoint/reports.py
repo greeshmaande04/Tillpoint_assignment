@@ -7,7 +7,8 @@ from . import db
 def day_bounds_utc(day, utc_offset_minutes=0):
     """The UTC instants at which a shop-local calendar day starts and ends. day is 'YYYY-MM-DD'."""
     start = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    start += timedelta(minutes=utc_offset_minutes)
+    # FIX: a zone ahead of UTC (+330) starts its day EARLIER in UTC, so subtract the offset
+    start -= timedelta(minutes=utc_offset_minutes)
     return db.to_iso(start), db.to_iso(start + timedelta(days=1))
 
 
